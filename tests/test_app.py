@@ -1,41 +1,127 @@
 # tests/test_app.py
+# test_submit_scored is an integration test — requires a valid GROQ_API_KEY in .env
 
-# -- basic test for Flask app --
+import json
 
-def test_submit():
-    """Test the /submit endpoint of the Flask app."""
-    from app import app
-    client = app.test_client()
+import config
+import pytest
+from app import app, limiter, log_event
 
-    # Test the /submit endpoint with a sample payload
-    response = client.post(
-        "/submit",
-        json={"text": "Sample text", 
-              "creator_id": "12345"})
+SAMPLE_CONTENT = (
+    "Artificial intelligence represents a transformative paradigm shift in modern society. "
+    "It is important to note that while the benefits of AI are numerous, it is equally "
+    "essential to consider the ethical implications. Furthermore, stakeholders across "
+    "various sectors must collaborate to ensure responsible deployment."
+)
+
+@pytest.fixture(autouse=True)
+def reset_rate_limits():
+    limiter.reset()
+    yield
+
+
+@pytest.fixture
+def client():
+    app.config["TESTING"] = True
+    with app.test_client() as client:
+        yield client
+
+
+# --- /submit ---
+
+def test_submit_scored(client):
+    response = client.post("/submit", json={
+        "content": SAMPLE_CONTENT,
+        "creator_id": "test-user-1",
+    })
     assert response.status_code == 200
     data = response.get_json()
     print(data)
+
+    assert data["status"] == "scored"
     assert "content_id" in data
-    assert data["attribution"] == "uncertain"
-    assert data["confidence"] == 0.5
-    assert data["label"] == "We're not sure who wrote this."
+    assert data["message"] is None
 
-def test_rate_limiter():
-    """Test rate limiting by making multiple requests to the /submit endpoint."""
-    from app import app
-    client = app.test_client()
+    assert isinstance(data["confidence_score"], float)
+    assert 0.0 <= data["confidence_score"] <= 1.0
 
-    # Test the rate limiter by making 11 requests in quick succession
-    for i in range(10):
-        response = client.post(
-            "/submit",
-            json={"text": "Sample text", 
-                  "creator_id": "12345"})
+    signals = data["signals"]
+    assert isinstance(signals["LLM"], float)
+    assert isinstance(signals["LLM_reasoning"], str)
+    assert len(signals["LLM_reasoning"]) > 0
+
+
+def test_submit_too_short(client):
+    response = client.post("/submit", json={
+        "content": "Too short.",
+        "creator_id": "test-user-1",
+    })
+    assert response.status_code == 200
+    data = response.get_json()
+    print(data)
+
+    assert data["status"] == "error"
+    assert "too short" in data["message"].lower()
+
+
+def test_submit_too_long(client):
+    response = client.post("/submit", json={
+        "content": "a" * 10001,
+        "creator_id": "test-user-1",
+    })
+    assert response.status_code == 200
+    data = response.get_json()
+    print(data)
+
+    assert data["status"] == "error"
+    assert "too long" in data["message"].lower()
+
+
+def test_rate_limiter(client):
+    for _ in range(config.MAX_SUBMISSIONS_IN_TIME_WINDOW):
+        response = client.post("/submit", json={
+            "content": SAMPLE_CONTENT,
+            "creator_id": "test-user-1",
+        })
         assert response.status_code == 200
 
-    # The 11th request should be rate limited
-    response = client.post(
-        "/submit",
-        json={"text": "Sample text", 
-              "creator_id": "12345"})
-    assert response.status_code == 429  # Too Many Requests
+    response = client.post("/submit", json={
+        "content": SAMPLE_CONTENT,
+        "creator_id": "test-user-1",
+    })
+    assert response.status_code == 429
+
+
+# --- log_event ---
+
+def test_log_event_writes_entry(tmp_path, monkeypatch):
+    log_file = tmp_path / "test_audit.jsonl"
+    monkeypatch.setattr(config, "LOG_FILE", str(log_file))
+
+    entry = {
+        "content_id": "test-123",
+        "creator_id": "user-1",
+        "status": "scored",
+        "confidence_score": 0.75,
+    }
+    log_event(entry)
+
+    lines = log_file.read_text().strip().split("\n")
+    assert len(lines) == 1
+    logged = json.loads(lines[0])
+    assert logged["content_id"] == "test-123"
+    assert logged["status"] == "scored"
+    assert "timestamp" in logged
+
+
+def test_log_event_appends(tmp_path, monkeypatch):
+    log_file = tmp_path / "test_audit.jsonl"
+    monkeypatch.setattr(config, "LOG_FILE", str(log_file))
+
+    log_event({"content_id": "a", "status": "scored"})
+    log_event({"content_id": "b", "status": "error"})
+
+    lines = log_file.read_text().strip().split("\n")
+    assert len(lines) == 2
+    assert json.loads(lines[0])["content_id"] == "a"
+    assert json.loads(lines[1])["content_id"] == "b"

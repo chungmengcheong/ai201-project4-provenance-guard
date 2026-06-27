@@ -13,8 +13,8 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 LLM_MODEL = "llama-3.3-70b-versatile"
 
 # --- Rate limiter ---
-MAX_SUBMISSIONS = 10  # Maximum number of submissions allowed within the time window
-MAX_SUBMISSIONS_WINDOW = 3  # Time window in minutes for rate limiting
+MAX_SUBMISSIONS_PER_DAY = 100  # Maximum number of submissions allowed a day
+MAX_SUBMISSIONS_IN_TIME_WINDOW = 5  # Maximum number of submissions allowed in a 1 minute time window
 
 # --- user content ---
 MINIMUM_LENGTH = 20  # Minimum length of user content in characters

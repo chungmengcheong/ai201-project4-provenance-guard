@@ -340,13 +340,13 @@ The rate limiter is prevents users from abusing the detection pipeline by enforc
 
 #### Design decisions
 
-Enforce a 'MAX_SUBMISSIONS' (10) within a 'MAX_SUBMISSIONS_WINDOW' (3 minutes). This leverages Flask-limiter's window resets to simplify implementation. 
+Enforce a 'MAX_SUBMISSIONS_IN_TIME_WINDOW' (5) within a minute, and up to MAX_SUBMISSIONS_PER_DAY (100). This leverages Flask-limiter's window resets to simplify implementation. 
 
 If 'MAX_SUBMISSIONS' is exceeded, the system will display the following error: 
 
     "There are too many submissions. Please try again later."
 
-The rationale is that each submission is likely to take ~15s to go through the detection pipeline. If the user is hitting the detect endpoint more rapidly than 10 times in 3m (i.e., faster than ~15s each), they are more likely to be abusing the system.   
+The rationale is that each submission is likely to take ~15s to go through the detection pipeline, which is ~4 requests per minutes. If the user is hitting the /submit endpoint more rapidly than 5 times in 1 minutes, or 100 times a day, they are more likely to be abusing the system.   
 
 
 ### Logging
