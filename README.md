@@ -112,14 +112,14 @@ The thresholds are deliberately asymmetric. Reaching `high-confidence AI` requir
 
 ## Rate Limiting
 
-10 submissions per 3-minute window via Flask-Limiter with in-memory storage. On breach, the endpoint returns HTTP 429 with the message "There are too many submissions. Please try again later." The window resets naturally — no custom timeout state is needed.
+20 submissions per 1-minute window via Flask-Limiter with in-memory storage. On breach, the endpoint returns HTTP 429 with the message "There are too many submissions. Please try again later." The window resets naturally — no custom timeout state is needed.
 
-Rationale: the detection pipeline takes roughly 15 seconds end-to-end (Groq API call plus stylometric computation). A legitimate creator submitting their own work wouldn't hit 10 submissions in 3 minutes under normal use. A script flooding the endpoint at that rate would exhaust the limit after 10 requests. Using Flask-Limiter's window semantics rather than a custom timeout keeps the implementation simple and testable.
+Rationale: The detect pipeline takes 1-2s to process submitted text. Additionally a human on a writing platform would take 3-5s to copy and paste entries into a Web UI. As such, a legitimate human creator would be unlikely to submit more than 10-15 entries per minute. A script flooding the endpoint would exhaust the limit after 20 requests. Using Flask-Limiter's window semantics rather than a custom timeout keeps the implementation simple and testable.
 
-Rate limit behavior under 12 rapid requests:
+Rate limit behavior under 22 rapid requests:
 
 ```
-200 200 200 200 200 200 200 200 200 200 429 429
+200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 429 429
 ```
 
 ## Audit Log
@@ -146,7 +146,7 @@ Sample entries:
 
 The spec helped most by requiring input/output contracts for every component before writing code. Defining exactly what `detect_signal()` returns — and separating it from what `apply_label()` returns — forced me to work through the data flow before touching the implementation. When the time came to wire the signals together, there was no ambiguity about what each function produced or expected. The unit tests followed directly from the contracts, which made them straightforward to write and easy to interpret when they failed.
 
-The implementation diverged from the spec in one place: `user_friendly_description` was removed from both the log entries and the `/submit` response. The spec included it in both. During implementation I decided the `label` field was sufficient for audit purposes — storing a full prose sentence in every log entry is verbose and redundant when the label already identifies which description was shown. The API response dropped it for the same reason: the label alone is machine-readable, and any display layer can reconstruct the description from it. This was a deliberate tradeoff for log compactness over strict spec fidelity.
+The implementation diverged from the spec in the rate limiter limits. I had originally envisioned a limit of 5 submissions in minutes, reasoning that the detect pipeline would take ~15s per call. It was much quicker at <5s. As such, I increased the limit to 20 per minute. 
 
 ## AI Usage
 

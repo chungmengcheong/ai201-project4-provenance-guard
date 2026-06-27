@@ -69,6 +69,9 @@ def test_submit_scored(client, content):
     assert isinstance(data["confidence_score"], float)
     assert 0.0 <= data["confidence_score"] <= 1.0
 
+    assert isinstance(data["user_friendly_description"], str)
+    assert len(data["user_friendly_description"]) > 0
+
     signals = data["signals"]
     assert isinstance(signals["LLM"], float)
     assert isinstance(signals["LLM_reasoning"], str)

@@ -89,15 +89,15 @@ def submit():
         return jsonify(entry)
 
     # Step 5: apply label
-    label = apply_label(detection["confidence_score"])["label"]
+    label_result = apply_label(detection["confidence_score"])
 
-    # Step 6: log and return
+    # Step 6: log (without description), then return response (with description)
     entry = _make_entry(content_id=content_id, creator_id=creator_id, status="scored",
-                        label=label,
+                        label=label_result["label"],
                         confidence_score=detection["confidence_score"],
                         signals=detection["signals"])
     log_event(entry)
-    return jsonify(entry)
+    return jsonify({**entry, "user_friendly_description": label_result["user_friendly_description"]})
 
 
 @app.route("/appeal", methods=["POST"])
