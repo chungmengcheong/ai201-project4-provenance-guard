@@ -10,9 +10,9 @@ Two flows:
 
 **Submission:** `POST /submit` → rate limiter → `detect_signal()` → `apply_label()` → `log_event()` → response. `detect_signal()` calls `assess_signal_llm()` and `assess_signal_stylometric()` in sequence and averages the results.
 
-**Appeal:** `POST /appeal` → `log_event()` with `status="appeal"` and `creator_reasoning` → response message.
+**Appeal:** `POST /appeal` → `log_event()` with `status="under_review"` and `creator_reasoning` → response message.
 
-The audit log is shared between both flows. A submission produces a `scored` entry; an appeal produces a separate `appeal` entry referencing the same `content_id`. The log is JSONL — one JSON object per line, append-only.
+The audit log is shared between both flows. A submission produces a `scored` entry; an appeal produces a separate `under_review` entry referencing the same `content_id`. The log is JSONL — one JSON object per line, append-only.
 
 ### Endpoints
 
@@ -167,4 +167,4 @@ I verified by reading the function signature, running unit tests against the fou
 
 **What I revised:**
 
-I verified by reading through the function signatures, writing unit tests for `apply_label()` with inputs targeting all three label thresholds, and writing a unit test for the `/appeal` endpoint that checks the audit log entry directly.
+I undertook verification but did not need to do any major revision. I verified by reading through the function signatures, writing unit tests for `apply_label()` with inputs targeting all three label thresholds, and writing a unit test for the `/appeal` endpoint that checks the audit log entry directly.
