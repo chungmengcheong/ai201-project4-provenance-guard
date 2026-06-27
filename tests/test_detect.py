@@ -2,7 +2,7 @@
 # Integration tests — require a valid GROQ_API_KEY in .env
 
 import pytest
-from detect import assess_signal_llm
+from detect import assess_signal_llm, assess_signal_stylometric, detect_signal
 
 CLEARLY_AI = (
     "Artificial intelligence represents a transformative paradigm shift in modern society. "
@@ -32,13 +32,13 @@ BORDERLINE_EDITED_AI = (
 )
 
 
-def _assert_shape(result):
-    """Assert the response matches the assess_signal_llm() output contract."""
+# --- LLM signal ---
+
+def _assert_llm_shape(result):
     assert isinstance(result, dict)
     assert "confidence_score" in result
     assert "reasoning" in result
     assert "message" in result
-
     if result["message"] is None:
         assert isinstance(result["confidence_score"], float)
         assert 0.0 <= result["confidence_score"] <= 1.0
@@ -47,23 +47,82 @@ def _assert_shape(result):
 
 def test_llm_clearly_ai():
     result = assess_signal_llm(CLEARLY_AI)
-    print("\n[clearly AI]\n", result)
-    _assert_shape(result)
+    print("\n[LLM | clearly AI]\n", result)
+    _assert_llm_shape(result)
 
 
 def test_llm_clearly_human():
     result = assess_signal_llm(CLEARLY_HUMAN)
-    print("\n[clearly human]\n", result)
-    _assert_shape(result)
+    print("\n[LLM | clearly human]\n", result)
+    _assert_llm_shape(result)
 
 
 def test_llm_borderline_formal_human():
     result = assess_signal_llm(BORDERLINE_FORMAL_HUMAN)
-    print("\n[borderline: formal human]\n", result)
-    _assert_shape(result)
+    print("\n[LLM | borderline: formal human]\n", result)
+    _assert_llm_shape(result)
 
 
 def test_llm_borderline_edited_ai():
     result = assess_signal_llm(BORDERLINE_EDITED_AI)
-    print("\n[borderline: lightly edited AI]\n", result)
-    _assert_shape(result)
+    print("\n[LLM | borderline: lightly edited AI]\n", result)
+    _assert_llm_shape(result)
+
+
+# --- Stylometric signal ---
+
+def _assert_stylometric_shape(score):
+    assert isinstance(score, float)
+    assert 0.0 <= score <= 1.0
+
+
+def test_stylometric_clearly_ai():
+    score = assess_signal_stylometric(CLEARLY_AI)
+    print(f"\n[stylometric | clearly AI] score={score:.3f}")
+    _assert_stylometric_shape(score)
+
+
+def test_stylometric_clearly_human():
+    score = assess_signal_stylometric(CLEARLY_HUMAN)
+    print(f"\n[stylometric | clearly human] score={score:.3f}")
+    _assert_stylometric_shape(score)
+
+
+def test_stylometric_borderline_formal_human():
+    score = assess_signal_stylometric(BORDERLINE_FORMAL_HUMAN)
+    print(f"\n[stylometric | borderline: formal human] score={score:.3f}")
+    _assert_stylometric_shape(score)
+
+
+def test_stylometric_borderline_edited_ai():
+    score = assess_signal_stylometric(BORDERLINE_EDITED_AI)
+    print(f"\n[stylometric | borderline: lightly edited AI] score={score:.3f}")
+    _assert_stylometric_shape(score)
+
+
+# --- detect_signal ---
+
+def _assert_detection_shape(result):
+    assert isinstance(result, dict)
+    assert result["status"] in ("scored", "error")
+    assert "confidence_score" in result
+    assert "signals" in result
+    assert "message" in result
+    if result["status"] == "scored":
+        assert isinstance(result["confidence_score"], float)
+        assert 0.0 <= result["confidence_score"] <= 1.0
+        assert isinstance(result["signals"]["LLM"], float)
+        assert isinstance(result["signals"]["stylometric"], float)
+        assert isinstance(result["signals"]["LLM_reasoning"], str)
+
+
+@pytest.mark.parametrize("content,label", [
+    (CLEARLY_AI, "clearly AI"),
+    (CLEARLY_HUMAN, "clearly human"),
+    (BORDERLINE_FORMAL_HUMAN, "borderline: formal human"),
+    (BORDERLINE_EDITED_AI, "borderline: lightly edited AI"),
+])
+def test_detect_signal(content, label):
+    result = detect_signal(content)
+    print(f"\n[detect_signal | {label}]\n", result)
+    _assert_detection_shape(result)

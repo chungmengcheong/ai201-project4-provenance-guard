@@ -242,9 +242,11 @@ AI text tends toward low sentence length variance (uniform rhythm) and more repe
 - sentence_length_variance. higher = more human-like variability
 - vocabulary_diversity. higher = more diverse vocabulary
 2. Combine and normalize the above into an aggregated score of 0-1, where 1 is AI writing
-- variance_score = 1 - min(sentence_length_variance / 100, 1)  # Note: need to tune the 100 divisor
-- diversity_score = 1 - min(vocabulary_diversity / 0.7, 1)  # Note: need to tune the 0.7 baseline
+- variance_score = 1 - min(sentence_length_variance / 50, 1)
+- diversity_score = 1 - min(vocabulary_diversity / 0.95, 1)
 - aggregate_score = (variance_score + diversity_score) / 2
+
+Divisors calibrated against 4 test cases (clearly AI, clearly human, borderline formal human, borderline edited AI). Observed variance range was 24–45 across test cases; divisor 50 maps this to the full score range without capping any test case. Observed TTR range was 0.86–0.92; divisor 0.95 keeps all values within the active window. Note: for short texts, TTR has weak discriminative power and the variance signal carries most of the weight.
 
 ### Edge cases
 
