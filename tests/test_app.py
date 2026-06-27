@@ -4,7 +4,7 @@
 import json
 import config
 import pytest
-from app import app, apply_label, limiter, log_event
+from app import app, apply_label, get_log, limiter, log_event
 
 CLEARLY_AI = (
     "Artificial intelligence represents a transformative paradigm shift in modern society. "
@@ -53,12 +53,14 @@ def client():
 ])
 def test_submit_scored(client, content):
     response = client.post("/submit", json={
-        "content": content,
+        "text": content,
         "creator_id": "test-user-1",
     })
     assert response.status_code == 200
     data = response.get_json()
+    print(f"{content=}\n")
     print(data)
+    print("--------------------------------\n")
 
     assert data["status"] == "scored"
     assert "content_id" in data
@@ -75,7 +77,7 @@ def test_submit_scored(client, content):
 
 def test_submit_too_short(client):
     response = client.post("/submit", json={
-        "content": "Too short.",
+        "text": "Too short.",
         "creator_id": "test-user-1",
     })
     assert response.status_code == 200
@@ -88,7 +90,7 @@ def test_submit_too_short(client):
 
 def test_submit_too_long(client):
     response = client.post("/submit", json={
-        "content": "a" * 10001,
+        "text": "a" * 10001,
         "creator_id": "test-user-1",
     })
     assert response.status_code == 200
@@ -102,16 +104,44 @@ def test_submit_too_long(client):
 def test_rate_limiter(client):
     for _ in range(config.MAX_SUBMISSIONS_IN_TIME_WINDOW):
         response = client.post("/submit", json={
-            "content": CLEARLY_AI,
+            "text": CLEARLY_AI,
             "creator_id": "test-user-1",
         })
         assert response.status_code == 200
 
     response = client.post("/submit", json={
-        "content": CLEARLY_AI,
+        "text": CLEARLY_AI,
         "creator_id": "test-user-1",
     })
     assert response.status_code == 429
+
+
+# --- /appeal ---
+
+USER_REASON = (
+    "I wrote this myself from personal experience. "
+    "I am a non-native English speaker and my writing style may appear more formal than typical."
+)
+
+def test_appeal(client):
+    response = client.post("/appeal", json={
+        "content_id": "test-content-id",
+        "creator_id": "test-user-1",
+        "label": "uncertain",
+        "confidence_score": 0.50,
+        "signals": {"LLM": 0.75, "stylometric": 0.25},
+        "creator_reasoning": USER_REASON,
+    })
+    assert response.status_code == 200
+    data = response.get_json()
+    print(data)
+    assert data["message"] == "Appeal received. Content status updated to 'under review'."
+
+    entry = get_log()[-1]
+    assert entry["content_id"] == "test-content-id"
+    assert entry["status"] == "under_review"
+    assert entry["creator_reasoning"] == USER_REASON
+    assert "timestamp" in entry
 
 
 # --- log_event ---
@@ -147,6 +177,36 @@ def test_log_event_appends(tmp_path, monkeypatch):
     assert len(lines) == 2
     assert json.loads(lines[0])["content_id"] == "a"
     assert json.loads(lines[1])["content_id"] == "b"
+
+
+# --- get_log ---
+
+def test_get_log_no_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "LOG_FILE", str(tmp_path / "nonexistent.jsonl"))
+    assert get_log() == []
+
+
+def test_get_log_returns_entries(tmp_path, monkeypatch):
+    log_file = tmp_path / "test_audit.jsonl"
+    monkeypatch.setattr(config, "LOG_FILE", str(log_file))
+
+    log_event({"content_id": "a", "status": "scored"})
+    log_event({"content_id": "b", "status": "error"})
+
+    entries = get_log()
+    assert len(entries) == 2
+    assert entries[0]["content_id"] == "a"
+    assert entries[1]["content_id"] == "b"
+
+
+def test_get_log_ignores_blank_lines(tmp_path, monkeypatch):
+    log_file = tmp_path / "test_audit.jsonl"
+    monkeypatch.setattr(config, "LOG_FILE", str(log_file))
+
+    log_file.write_text('{"content_id": "a"}\n\n{"content_id": "b"}\n')
+
+    entries = get_log()
+    assert len(entries) == 2
 
 
 # --- apply_label ---

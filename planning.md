@@ -79,7 +79,7 @@ Web-based UI that accepts user submission and initiates the detection flow (`POS
 
 **Input:**
 
-content (str): user submitted text
+text (str): user submitted text
 creator_id (str): identifier of the submitting user
 
 **Output:**
@@ -299,7 +299,7 @@ dict:
 {
 'content_id' (str) : unique identifier from the preceding /submit response,
 'creator_id' (str) : identifier of the submitting user,
-'status' (str) : 'appeal',
+'status' (str) : 'under_review',
 'label' (str) : transparency label text,
 'user_friendly_description' (str) : explanation of transparency label,
 'confidence_score' (float) : range 0 to 1.0 inclusive, 
@@ -309,7 +309,7 @@ dict:
     'stylometric (float) : range 0 to 1.0 inclusive,
     }
 'message' (str) : if error, otherwise default to Null
-'user_reason' (str) : reason provided by user in the webUI 
+'creator_reasoning' (str) : reason provided by user in the webUI 
 }    
 
 Note: 'label', 'user_friendly_description', 'confidence_score', 'signals', and 'message' are verbatim from the preceeding /endpoint response. 
@@ -375,10 +375,10 @@ dict:
     'stylometric (float) : range 0 to 1.0 inclusive,
     }
 'message' (str) : if error, otherwise default to Null
-'user_reason' (str) : reason if provided by user in the webUI
+'creator_reasoning' (str) : reason if provided by user in the webUI
 }   
 
-Note 'user_reason' is optional. 
+Note 'creator_reasoning' is optional. 
 
 **Output:**
 
@@ -397,10 +397,10 @@ JSON:
     'stylometric (float) : range 0 to 1.0 inclusive,
     }
 'message' (str) : if error, otherwise default to Null
-'user_reason' (str) : reason if provided by user in the webUI 
+'creator_reasoning' (str) : reason if provided by user in the webUI 
 }   
 
-Note 'user_reason' is optional. 
+Note 'creator_reasoning' is optional. 
 
 
 #### Design decisions

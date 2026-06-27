@@ -7,10 +7,10 @@ import config
 _client = Groq(api_key=config.GROQ_API_KEY)
 
 SCORE_MAP = {
-    "clearly_ai":    0.95,
-    "likely_ai":     0.75,
-    "uncertain":     0.50,
-    "likely_human":  0.25,
+    "clearly_ai": 0.95,
+    "likely_ai": 0.75,
+    "uncertain": 0.50,
+    "likely_human": 0.25,
     "clearly_human": 0.05,
 }
 
@@ -105,8 +105,10 @@ def assess_signal_stylometric(content: str) -> float:
     # Normalize: low variance and low diversity → high AI score.
     variance_score = 1 - min(variance / 50, 1)
     diversity_score = 1 - min(vocabulary_diversity / 0.95, 1)
+    
+    aggregate_score = round((variance_score + diversity_score) / 2, 2)
 
-    return (variance_score + diversity_score) / 2
+    return aggregate_score
 
 
 def detect_signal(content: str) -> dict:
@@ -142,4 +144,3 @@ def detect_signal(content: str) -> dict:
         },
         "message": None,
     }
-
