@@ -2,7 +2,8 @@
     "python.defaultInterpreterPath": ".venv/bin/python",
     "python.testing.pytestArgs": [
         "tests",
-        "--rootdir=${workspaceFolder}"
+        "--rootdir=${workspaceFolder}",
+        "-s"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,

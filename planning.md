@@ -79,7 +79,8 @@ Web-based UI that accepts user submission and initiates the detection flow (`POS
 
 **Input:**
 
-content: str
+content (str): user submitted text
+creator_id (str): identifier of the submitting user
 
 **Output:**
 
@@ -109,7 +110,7 @@ If not:
 - Set 'label', 'user_friendly_description', 'confidence_score', 'signals'
 - If text is less than `MINIMUM_LENGTH`, set status = 'error' and 'message' = 'Submitted text is too short to be assessed'.  
 - If text is more than `MAXIMUM_LENGTH`, set status = 'error' and 'message' = 'Submitted text is too long to be assessed'.  
-- Skip to step 5
+- Skip to step 6
 
 3. Generate a unique `content_id` (UUID) for this submission.
 
@@ -243,7 +244,7 @@ AI text tends toward low sentence length variance (uniform rhythm) and more repe
 2. Combine and normalize the above into an aggregated score of 0-1, where 1 is AI writing
 - variance_score = 1 - min(sentence_length_variance / 100, 1)  # Note: need to tune the 100 divisor
 - diversity_score = 1 - min(vocabulary_diversity / 0.7, 1)  # Note: need to tune the 0.7 baseline
-- aggregate_score = (variance_score + diversity_score)
+- aggregate_score = (variance_score + diversity_score) / 2
 
 ### Edge cases
 
@@ -295,6 +296,7 @@ Web-based UI that lets the users contest a classification. The user's reasoning 
 dict:
 {
 'content_id' (str) : unique identifier from the preceding /submit response,
+'creator_id' (str) : identifier of the submitting user,
 'status' (str) : 'appeal',
 'label' (str) : transparency label text,
 'user_friendly_description' (str) : explanation of transparency label,
@@ -360,6 +362,7 @@ Every attribution decision — including confidence score, signals used, and any
 dict:
 {
 'content_id' (str) : unique identifier for this submission,
+'creator_id' (str) : identifier of the submitting user,
 'timestamp' (str) : ISO 8601 timestamp,
 'status' (str) : one of ['scored', 'error', 'appeal'],
 'label' (str) : transparency label text,
@@ -381,6 +384,7 @@ JSON:
 
 {
 'content_id' (str) : unique identifier for this submission,
+'creator_id' (str) : identifier of the submitting user,
 'timestamp' (str) : ISO 8601 timestamp,
 'status' (str) : one of ['scored', 'error', 'appeal'],
 'label' (str) : transparency label text,
@@ -401,31 +405,63 @@ Note 'user_reason' is optional.
 
 The output is an individual JSON object that is appended into a JSONL file. 
 
+
 ## AI Tool Plan
 
 ### Milestone 3 - submission endpoint + LLM signal
 
 **What I'll provide the AI:**
 
+- 'Architecture', 'Submission flow', and then serially 'detection pipeline', 'detection signal #1 LLM classification', and 'Logging' sections of planning.md
+
 **What I'll ask AI to generate:**
 
+Incrementally and sequentially:
+- Implement the Flask app skeleton with the POST /submit route stub
+- Implement 'detection signal #1 LLM classification'
+- Implement 'logging'
+
 **How I'll verify AI's output:**
+
+- Read through code and check the function signature
+- Verify that the Flask route works with a stub response
+- Unit tests for the LLM classifier
+- Verify that the wired up Flask app to the LLM classifier works
 
 
 ### Milestone 4 - Stylometric heuristics signal + confidence scoring
 
 **What I'll provide the AI:**
 
+- 'Architecture', 'Submission flow', and then serially 'detection signal #2 stylometrics', and 'Apply Label' sections of planning.md
+
 **What I'll ask AI to generate:**
 
+- Implement 'detection signal #2 Stylometrics'
+
 **How I'll verify AI's output:**
+
+Incrementally and sequentially:
+- Read through code and check the function signature
+- Unit tests for stylometrics signal detecter
 
 
 ### Milestone 5 - Production layer
 
 **What I'll provide the AI:**
 
+- 'Architecture', 'Submission flow', 'Apply Label' sections and 'Appeals flow' of planning.md
+
 **What I'll ask AI to generate:**
 
+Incrementally and sequentially:
+- Implement 'Apply Label'
+- Implement the POST /appeal endpoint
+- Implement the rate limiter
+
 **How I'll verify AI's output:**
+
+- Read through code and check the function signature
+- Unit tests for 'Apply label' with inputs that should trigger all three labels
+- Unit tests for /appeal endpoint
 
